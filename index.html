@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Zone Score Calculator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-6">
+
+<h1 class="text-3xl font-bold mb-6">Zone Score Calculator</h1>
+
+<!-- Team Selection -->
+<div class="bg-gray-800 p-4 rounded-xl shadow-md w-full max-w-2xl">
+<h2 class="text-xl font-semibold mb-3">Select Teams</h2>
+<div class="flex gap-4">
+<select id="team1" class="p-2 rounded text-black w-1/2">
+<option value="A">Team A</option>
+<option value="B">Team B</option>
+<option value="C">Team C</option>
+<option value="D">Team D</option>
+<option value="E">Team E</option>
+<option value="F">Team F</option>
+</select>
+<select id="team2" class="p-2 rounded text-black w-1/2">
+<option value="B">Team B</option>
+<option value="A">Team A</option>
+<option value="C">Team C</option>
+<option value="D">Team D</option>
+<option value="E">Team E</option>
+<option value="F">Team F</option>
+</select>
+</div>
+</div>
+
+<!-- Input Scores + Members -->
+<div class="bg-gray-800 p-4 rounded-xl shadow-md w-full max-w-2xl mt-6">
+<h2 class="text-xl font-semibold mb-3">Enter Team Data</h2>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="block">Team 1 Total Score</label>
+<input id="score1" type="number" class="w-full p-2 text-black rounded">
+<label class="block mt-2">Team 1 Members (max 4)</label>
+<input id="members1" type="number" min="1" max="4" class="w-full p-2 text-black rounded">
+</div>
+<div>
+<label class="block">Team 2 Total Score</label>
+<input id="score2" type="number" class="w-full p-2 text-black rounded">
+<label class="block mt-2">Team 2 Members (max 4)</label>
+<input id="members2" type="number" min="1" max="4" class="w-full p-2 text-black rounded">
+</div>
+</div>
+<div class="mt-4 flex gap-2">
+<button onclick="startShowdown()" id="startBtn" class="bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700">
+Start 45s Timer
+</button>
+<button onclick="skipTimer()" class="bg-yellow-600 px-4 py-2 rounded-lg hover:bg-yellow-700">
+Skip Timer
+</button>
+</div>
+</div>
+
+<!-- Timer -->
+<div id="timerBox" class="hidden bg-gray-800 p-4 rounded-xl shadow-md w-full max-w-2xl mt-6 text-center">
+<h2 class="text-xl font-semibold">Timer</h2>
+<p id="timer" class="text-3xl font-bold mt-2">45</p>
+</div>
+
+<!-- Zone Members Input -->
+<div id="zoneInput" class="hidden bg-gray-800 p-4 rounded-xl shadow-md w-full max-w-2xl mt-6">
+<h2 class="text-xl font-semibold mb-3">Enter Zone Members</h2>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="block">Team 1 Zone Members</label>
+<input id="zone1" type="number" min="0" max="4" class="w-full p-2 text-black rounded">
+</div>
+<div>
+<label class="block">Team 2 Zone Members</label>
+<input id="zone2" type="number" min="0" max="4" class="w-full p-2 text-black rounded">
+</div>
+</div>
+<button onclick="calculateResult()" class="mt-4 bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700">
+Calculate Result
+</button>
+</div>
+
+<!-- Results -->
+<div id="resultBox" class="hidden bg-gray-800 p-4 rounded-xl shadow-md w-full max-w-2xl mt-6">
+<h2 class="text-xl font-semibold">Result</h2>
+<p id="resultText" class="mt-2 text-lg"></p>
+<button onclick="downloadCSV()" class="mt-4 bg-purple-600 px-4 py-2 rounded-lg hover:bg-purple-700">Download CSV</button>
+</div>
+
+<script>
+let teams={A:{score:0},B:{score:0},C:{score:0},D:{score:0},E:{score:0},F:{score:0}};
+let team1,team2,pps1,pps2,timerInterval;
+let csvData = [["Timestamp","Team1","Team2","ZoneScore1","ZoneScore2","Winner","UpdatedScore1","UpdatedScore2"]];
+
+function startShowdown(){
+team1=document.getElementById("team1").value;
+team2=document.getElementById("team2").value;
+let score1=parseFloat(document.getElementById("score1").value);
+let score2=parseFloat(document.getElementById("score2").value);
+let members1=parseInt(document.getElementById("members1").value);
+let members2=parseInt(document.getElementById("members2").value);
+if(team1===team2){alert("Select two different teams!"); return;}
+if(!score1||!score2||!members1||!members2){alert("Fill all inputs!"); return;}
+if(members1>4||members2>4){alert("Max 4 members per team!"); return;}
+teams[team1].score=score1;
+teams[team2].score=score2;
+pps1=score1/members1;
+pps2=score2/members2;
+document.getElementById("timerBox").classList.remove("hidden");
+document.getElementById("zoneInput").classList.add("hidden");
+document.getElementById("resultBox").classList.add("hidden");
+const startBtn=document.getElementById("startBtn");
+startBtn.disabled=true; startBtn.classList.add("opacity-50","cursor-not-allowed");
+if(timerInterval) clearInterval(timerInterval);
+let time=45; document.getElementById("timer").innerText=time;
+timerInterval=setInterval(()=>{
+time--; document.getElementById("timer").innerText=time;
+if(time<=0){clearInterval(timerInterval); showZoneInput();}},1000);
+}
+
+function skipTimer(){if(timerInterval) clearInterval(timerInterval);document.getElementById("timer").innerText="Skipped";showZoneInput();}
+function showZoneInput(){document.getElementById("zoneInput").classList.remove("hidden");const startBtn=document.getElementById("startBtn");startBtn.disabled=false;startBtn.classList.remove("opacity-50","cursor-not-allowed");}
+
+function calculateResult(){
+let zone1=parseInt(document.getElementById("zone1").value);
+let zone2=parseInt(document.getElementById("zone2").value);
+if(zone1>4||zone2>4){alert("Zone members cannot exceed 4!"); return;}
+let zoneScore1=zone1*pps1, zoneScore2=zone2*pps2, result="", winner=null;
+if(zoneScore1>zoneScore2){let penalty=teams[team2].score*0.25; teams[team2].score-=penalty; teams[team1].score+=penalty; winner=team1; result=`Winner: Team ${team1} 🎉 <br>Team ${team1} Zone Score: ${zoneScore1.toFixed(2)} <br>Team ${team2} Zone Score: ${zoneScore2.toFixed(2)} <br>Team ${team1} gains ${penalty.toFixed(2)} points. <br>Team ${team2} loses ${penalty.toFixed(2)} points.`;}
+else if(zoneScore2>zoneScore1){let penalty=teams[team1].score*0.25; teams[team1].score-=penalty; teams[team2].score+=penalty; winner=team2; result=`Winner: Team ${team2} 🎉 <br>Team ${team1} Zone Score: ${zoneScore1.toFixed(2)} <br>Team ${team2} Zone Score: ${zoneScore2.toFixed(2)} <br>Team ${team2} gains ${penalty.toFixed(2)} points. <br>Team ${team1} loses ${penalty.toFixed(2)} points.`;}
+else{result=`It's a tie 🤝 <br>Both teams scored ${zoneScore1.toFixed(2)}.`;}
+result+=`<br><br>Updated Scores → Team ${team1}: ${teams[team1].score.toFixed(2)} | Team ${team2}: ${teams[team2].score.toFixed(2)}`;
+document.getElementById("resultText").innerHTML=result;
+document.getElementById("resultBox").classList.remove("hidden");
+
+// Save to CSV array
+csvData.push([
+new Date().toLocaleString(),
+team1,team2,
+zoneScore1.toFixed(2),zoneScore2.toFixed(2),
+winner || "Tie",
+teams[team1].score.toFixed(2),
+teams[team2].score.toFixed(2)
+]);
+}
+
+// Download CSV
+function downloadCSV(){
+let csvContent = csvData.map(e => e.join(",")).join("\n");
+let blob = new Blob([csvContent], {type:"text/csv"});
+let url = URL.createObjectURL(blob);
+let a = document.createElement("a");
+a.href=url;
+a.download="zone_scores.csv";
+a.click();
+URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>
